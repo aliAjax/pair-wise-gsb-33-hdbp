@@ -67,7 +67,7 @@ gb-61/
 │   ├── cmd/server/              # main.go + migrate/seed
 │   └── internal/
 │       ├── config/              # 环境变量解析
-│       ├── model/               # 9 个实体，按实体分文件
+│       ├── model/               # 11 个实体，按实体分文件
 │       ├── repository/          # 按实体分文件，哨兵错误
 │       ├── service/             # 按实体分文件，构造器注入
 │       ├── handler/             # 按实体分文件 + upload/home
@@ -140,18 +140,23 @@ gb-61/
 | POST | /api/v1/pests | 管理员（限流） | 新增病虫害条目 |
 | PUT | /api/v1/pests/:id | 管理员 | 更新病虫害条目 |
 | DELETE | /api/v1/pests/:id | 管理员 | 删除病虫害条目 |
-| GET | /api/v1/reminders | 登录 | 当前用户提醒列表（自动标记逾期） |
+| GET | /api/v1/reminders | 登录 | 当前用户提醒列表（自动标记逾期，支持 status/location 筛选） |
 | GET | /api/v1/reminders/calendar | 登录 | 按月查询提醒 |
-| POST | /api/v1/reminders | 登录（限流） | 创建养护提醒 |
+| POST | /api/v1/reminders | 登录（限流） | 创建养护提醒（remind_date 支持 YYYY-MM-DD，可关联 garden_id） |
 | PUT | /api/v1/reminders/:id/status | 登录 | 状态流转 pending/done |
 | DELETE | /api/v1/reminders/:id | 登录 | 删除提醒 |
 | GET | /api/v1/favorites | 登录 | 收藏列表 |
 | POST | /api/v1/favorites | 登录（限流） | 添加收藏 |
 | DELETE | /api/v1/favorites/:targetType/:targetId | 登录 | 取消收藏 |
-| GET | /api/v1/gardens | 登录 | 我的花园列表 |
-| POST | /api/v1/gardens | 登录（限流） | 加入我的花园 |
+| GET | /api/v1/gardens | 登录 | 植株档案列表（支持 location 筛选） |
+| POST | /api/v1/gardens | 登录（限流） | 建档：生成唯一园内编号，校验位置容量 |
+| GET | /api/v1/gardens/locations | 登录 | 各位置容量/已用/余量 |
+| PUT | /api/v1/gardens/locations/:location | 登录 | 设置位置容量（indoor/balcony） |
+| GET | /api/v1/gardens/moves | 登录 | 搬位记录（含已移除植株，可按 garden_id 过滤） |
+| POST | /api/v1/gardens/moves | 登录（限流） | 批量搬位：任一位置放不下则整批拒绝并说明缺口 |
+| PUT | /api/v1/gardens/:id/location | 登录 | 单株搬位（先校验目标余量） |
 | PUT | /api/v1/gardens/:id/reminder | 登录 | 关联养护提醒 |
-| DELETE | /api/v1/gardens/:id | 登录 | 移除花园条目 |
+| DELETE | /api/v1/gardens/:id | 登录 | 移除植株（软删除，历史记录保留） |
 | GET | /api/v1/questions | 公开 | 问答列表 |
 | GET | /api/v1/questions/:id | 公开 | 问题详情 |
 | GET | /api/v1/questions/:id/answers | 公开 | 问题回答列表 |

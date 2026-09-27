@@ -24,6 +24,8 @@ func Setup(cfg *config.Config, db *gorm.DB, logger *slog.Logger) *gin.Engine {
 	reminderRepo := repository.NewCareReminderRepository(db)
 	favoriteRepo := repository.NewFavoriteRepository(db)
 	gardenRepo := repository.NewUserGardenRepository(db)
+	moveRepo := repository.NewGardenMoveRepository(db)
+	capRepo := repository.NewGardenLocationCapRepository(db)
 	questionRepo := repository.NewQuestionRepository(db)
 	answerRepo := repository.NewAnswerRepository(db)
 
@@ -32,9 +34,9 @@ func Setup(cfg *config.Config, db *gorm.DB, logger *slog.Logger) *gin.Engine {
 	plantService := service.NewPlantSpeciesService(plantRepo, logger)
 	articleService := service.NewCareArticleService(articleRepo, logger)
 	pestService := service.NewDiseasePestService(pestRepo, logger)
-	reminderService := service.NewCareReminderService(reminderRepo, logger)
+	reminderService := service.NewCareReminderService(reminderRepo, gardenRepo, logger)
 	favoriteService := service.NewFavoriteService(favoriteRepo, logger)
-	gardenService := service.NewUserGardenService(gardenRepo, logger)
+	gardenService := service.NewUserGardenService(gardenRepo, moveRepo, capRepo, logger)
 	questionService := service.NewQuestionService(questionRepo, answerRepo, userService, logger)
 	answerService := service.NewAnswerService(db, answerRepo, questionRepo, logger)
 

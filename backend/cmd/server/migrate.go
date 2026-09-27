@@ -2,6 +2,7 @@ package main
 
 import (
 	"log/slog"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -11,7 +12,7 @@ import (
 )
 
 func migrate(db *gorm.DB) error {
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&model.User{},
 		&model.PlantSpecies{},
 		&model.CareArticle{},
@@ -19,9 +20,24 @@ func migrate(db *gorm.DB) error {
 		&model.CareReminder{},
 		&model.Favorite{},
 		&model.UserGarden{},
+		&model.GardenMove{},
+		&model.GardenLocationCap{},
 		&model.Question{},
 		&model.Answer{},
-	)
+	); err != nil {
+		return err
+	}
+	// Legacy schema cleanup: plant profiles allow several pots of the same
+	// species, so the old unique (user_id, plant_species_id) index must go.
+	// Best effort — the index is absent on fresh databases.
+	for _, idx := range []string{"uk_garden_user_plant", "idx_garden_user_plant"} {
+		if db.Migrator().HasIndex(&model.UserGarden{}, idx) {
+			if err := db.Migrator().DropIndex(&model.UserGarden{}, idx); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func seed(db *gorm.DB) error {
@@ -78,17 +94,25 @@ func seed(db *gorm.DB) error {
 		return err
 	}
 
+	gardens := []model.UserGarden{
+		{UserID: user.ID, GardenNo: "G-0001", PlantSpeciesID: plants[3].ID, Nickname: "月季", OwnedSince: time.Now(), Location: constants.GardenLocationBalcony},
+		{UserID: user.ID, GardenNo: "G-0002", PlantSpeciesID: plants[0].ID, Nickname: "龟背竹", OwnedSince: time.Now(), Location: constants.GardenLocationIndoor},
+	}
+	if err := db.Create(&gardens).Error; err != nil {
+		return err
+	}
+
 	reminders := []model.CareReminder{
-		{UserID: user.ID, PlantSpeciesID: plants[3].ID, TaskTitle: "给月季补充缓释肥", Frequency: "monthly", Status: model.ReminderPending},
-		{UserID: user.ID, PlantSpeciesID: plants[0].ID, TaskTitle: "龟背竹叶片擦拭除尘", Frequency: "weekly", Status: model.ReminderPending},
+		{UserID: user.ID, PlantSpeciesID: plants[3].ID, GardenID: gardens[0].ID, TaskTitle: "给月季补充缓释肥", RemindDate: time.Now().AddDate(0, 0, 3), Frequency: "monthly", Status: model.ReminderPending},
+		{UserID: user.ID, PlantSpeciesID: plants[0].ID, GardenID: gardens[1].ID, TaskTitle: "龟背竹叶片擦拭除尘", RemindDate: time.Now().AddDate(0, 0, 1), Frequency: "weekly", Status: model.ReminderPending},
 	}
 	if err := db.Create(&reminders).Error; err != nil {
 		return err
 	}
 
 	questions := []model.Question{
-		{UserID: user.ID, Title: "新买的月季叶子发黄怎么办？", Content: "刚上盆一周，叶片边缘发黄，是不是浇水太多？", Status: "open"},
-		{UserID: user.ID, Title: "多肉徒长了如何补救？", Content: "冬季光照不足，多肉长高了，可以砍头吗？", Status: "open"},
+		{UserID: user.ID, Title: "新买的月季叶子发黄怎么办？", Content: "刚上盆一周，叶片边缘发黄，是不是浇水太多？", Images: `[]`, Status: "open"},
+		{UserID: user.ID, Title: "多肉徒长了如何补救？", Content: "冬季光照不足，多肉长高了，可以砍头吗？", Images: `[]`, Status: "open"},
 	}
 	if err := db.Create(&questions).Error; err != nil {
 		return err
@@ -104,6 +128,6 @@ func seed(db *gorm.DB) error {
 
 	logger.Info("gbplantwiki seed data created",
 		"users", 2, "plants", len(plants), "articles", len(articles),
-		"pests", len(pests), "reminders", len(reminders), "questions", len(questions), "answers", len(answers))
+		"pests", len(pests), "gardens", len(gardens), "reminders", len(reminders), "questions", len(questions), "answers", len(answers))
 	return nil
 }

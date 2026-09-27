@@ -1,6 +1,12 @@
 <template>
   <el-table :data="reminders" stripe empty-text="暂无养护提醒">
-    <el-table-column prop="task_title" label="任务" min-width="180" />
+    <el-table-column prop="task_title" label="任务" min-width="160" />
+    <el-table-column label="植株" min-width="120">
+      <template #default="{ row }">
+        <span v-if="row.garden_no">{{ row.plant_nickname || row.garden_no }}<span class="plant-no">（{{ row.garden_no }}）</span></span>
+        <span v-else>-</span>
+      </template>
+    </el-table-column>
     <el-table-column label="提醒日期" width="120">
       <template #default="{ row }">{{ formatDate(row.remind_date) }}</template>
     </el-table-column>
@@ -39,3 +45,7 @@ function frequencyText(f: string): string {
   return map[f] || f || '-'
 }
 </script>
+
+<style scoped>
+.plant-no { color: #999; font-size: 12px; }
+</style>

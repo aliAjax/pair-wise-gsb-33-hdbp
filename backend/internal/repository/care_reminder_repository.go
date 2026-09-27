@@ -53,14 +53,23 @@ func (r *CareReminderRepository) Delete(id uint) error {
 	return nil
 }
 
-// ListByUser returns reminders for a user with optional status filter.
-func (r *CareReminderRepository) ListByUser(userID uint, status string) ([]model.CareReminder, error) {
-	var items []model.CareReminder
-	q := r.db.Where("user_id = ?", userID)
+// ListByUser returns reminders for a user with optional status and garden
+// location filters. The join to user_gardens is unscoped on purpose: reminders
+// of removed plants keep their last known location and stay queryable.
+func (r *CareReminderRepository) ListByUser(userID uint, status, location string) ([]model.CareReminderWithPlant, error) {
+	var items []model.CareReminderWithPlant
+	q := r.db.Model(&model.CareReminder{}).
+		Select("care_reminders.*, COALESCE(user_gardens.garden_no, '') AS garden_no, "+
+			"COALESCE(user_gardens.nickname, '') AS plant_nickname, COALESCE(user_gardens.location, '') AS location").
+		Joins("LEFT JOIN user_gardens ON user_gardens.id = care_reminders.garden_id").
+		Where("care_reminders.user_id = ?", userID)
 	if status != "" {
-		q = q.Where("status = ?", status)
+		q = q.Where("care_reminders.status = ?", status)
 	}
-	if err := q.Order("remind_date ASC").Find(&items).Error; err != nil {
+	if location != "" {
+		q = q.Where("user_gardens.location = ?", location)
+	}
+	if err := q.Order("care_reminders.remind_date ASC").Scan(&items).Error; err != nil {
 		return nil, err
 	}
 	return items, nil
