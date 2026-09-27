@@ -66,13 +66,15 @@ CREATE TABLE IF NOT EXISTS care_reminders (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id BIGINT UNSIGNED NOT NULL,
   plant_species_id BIGINT UNSIGNED DEFAULT 0,
+  garden_id BIGINT UNSIGNED DEFAULT 0,
   task_title VARCHAR(255) NOT NULL,
   remind_date DATE,
   frequency VARCHAR(32) DEFAULT '',
   status VARCHAR(16) NOT NULL DEFAULT 'pending',
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   KEY idx_reminders_user (user_id),
-  KEY idx_reminders_date (remind_date)
+  KEY idx_reminders_date (remind_date),
+  KEY idx_reminders_garden (garden_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS favorites (
@@ -88,12 +90,40 @@ CREATE TABLE IF NOT EXISTS user_gardens (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id BIGINT UNSIGNED NOT NULL,
   plant_species_id BIGINT UNSIGNED NOT NULL,
+  garden_code VARCHAR(32) DEFAULT '',
   nickname VARCHAR(64) DEFAULT '',
   owned_since DATE,
-  location VARCHAR(128) DEFAULT '',
+  location_id BIGINT UNSIGNED DEFAULT 0,
+  status VARCHAR(16) NOT NULL DEFAULT 'active',
+  removed_at DATETIME(3) NULL,
   care_reminder_id BIGINT UNSIGNED DEFAULT 0,
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
-  UNIQUE KEY uk_garden_user_plant (user_id, plant_species_id)
+  UNIQUE KEY uk_garden_user_plant (user_id, plant_species_id),
+  KEY idx_garden_code (garden_code),
+  KEY idx_garden_location (location_id),
+  KEY idx_garden_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS garden_locations (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(32) NOT NULL,
+  capacity INT NOT NULL DEFAULT 0,
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE KEY uk_location_user_name (user_id, name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS garden_move_records (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  garden_id BIGINT UNSIGNED NOT NULL,
+  garden_code VARCHAR(32) DEFAULT '',
+  plant_nickname VARCHAR(64) DEFAULT '',
+  from_location VARCHAR(32) DEFAULT '',
+  to_location VARCHAR(32) DEFAULT '',
+  moved_at DATETIME(3),
+  KEY idx_moves_user (user_id),
+  KEY idx_moves_garden (garden_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS questions (
@@ -144,9 +174,22 @@ INSERT INTO disease_pests (plant_species_id, name, symptoms, cause, treatment, r
   (1, '龟背竹叶斑病', '叶片出现褐色水渍状病斑，逐渐扩大干枯。', '浇水过多、长期积水，病原真菌感染。', '控水通风，剪除病叶，喷施多菌灵。', '多菌灵', '叶斑,烂叶', JSON_ARRAY()),
   (0, '红蜘蛛', '叶面出现细密黄白色斑点，叶背有蛛网。', '空气干燥、高温，螨虫滋生。', '增加湿度，喷施阿维菌素或哒螨灵。', '阿维菌素、哒螨灵', '红蜘蛛,螨,黄点', JSON_ARRAY());
 
-INSERT INTO care_reminders (user_id, plant_species_id, task_title, remind_date, frequency, status) VALUES
-  (2, 4, '给月季补充缓释肥', DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'monthly', 'pending'),
-  (2, 1, '龟背竹叶片擦拭除尘', DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'weekly', 'pending');
+INSERT INTO garden_locations (user_id, name, capacity) VALUES
+  (2, '室内', 10),
+  (2, '阳台', 6);
+
+INSERT INTO user_gardens (user_id, plant_species_id, nickname, owned_since, location_id, status) VALUES
+  (2, 4, '阳台月季', DATE_SUB(CURDATE(), INTERVAL 3 MONTH), 2, 'active'),
+  (2, 1, '客厅龟背竹', DATE_SUB(CURDATE(), INTERVAL 6 MONTH), 1, 'active');
+
+UPDATE user_gardens SET garden_code = CONCAT('G', LPAD(id, 6, '0')) WHERE garden_code = '';
+
+INSERT INTO garden_move_records (user_id, garden_id, garden_code, plant_nickname, from_location, to_location, moved_at) VALUES
+  (2, 1, 'G000001', '阳台月季', '室内', '阳台', DATE_SUB(NOW(), INTERVAL 7 DAY));
+
+INSERT INTO care_reminders (user_id, plant_species_id, garden_id, task_title, remind_date, frequency, status) VALUES
+  (2, 4, 1, '给月季补充缓释肥', DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'monthly', 'pending'),
+  (2, 1, 2, '龟背竹叶片擦拭除尘', DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'weekly', 'pending');
 
 INSERT INTO questions (user_id, title, content, images, status) VALUES
   (2, '新买的月季叶子发黄怎么办？', '刚上盆一周，叶片边缘发黄，是不是浇水太多？', JSON_ARRAY(), 'open'),

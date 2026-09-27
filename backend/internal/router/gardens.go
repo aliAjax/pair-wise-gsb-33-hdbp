@@ -12,6 +12,13 @@ func registerGardenRoutes(v1 *gin.RouterGroup, cfg *config.Config, h *handler.Us
 	gardens := v1.Group("/gardens", middleware.AuthRequired(cfg))
 	gardens.GET("", h.List)
 	gardens.POST("", limiter.Limit(), h.Add)
+	gardens.GET("/removed", h.ListRemoved)
+	gardens.GET("/moves", h.ListMoves)
+	gardens.POST("/move", limiter.Limit(), h.Move)
 	gardens.PUT("/:id/reminder", h.BindReminder)
 	gardens.DELETE("/:id", h.Remove)
+
+	locations := v1.Group("/garden-locations", middleware.AuthRequired(cfg))
+	locations.GET("", h.ListLocations)
+	locations.PUT("/:id", h.UpdateLocationCapacity)
 }

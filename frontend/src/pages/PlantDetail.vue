@@ -23,6 +23,19 @@
       </el-card>
     </div>
 
+    <el-dialog v-model="gardenDialog" title="选择摆放位置" width="420px">
+      <p>为「{{ plant.name }}」建档并选择摆放位置：</p>
+      <el-radio-group v-model="targetLocation" class="location-options">
+        <el-radio v-for="loc in locations" :key="loc.id" :value="loc.id" :disabled="loc.remaining <= 0">
+          {{ loc.name }}（剩余 {{ loc.remaining }} 个空位）
+        </el-radio>
+      </el-radio-group>
+      <template #footer>
+        <el-button @click="gardenDialog = false">取消</el-button>
+        <el-button type="success" :disabled="!targetLocation" :loading="gardenLoading" @click="confirmAddToGarden">确定加入</el-button>
+      </template>
+    </el-dialog>
+
     <section v-if="pests.length">
       <h2>关联病虫害</h2>
       <el-row :gutter="16">
@@ -40,13 +53,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPlant } from '@/api/plant'
 import { listPests } from '@/api/pest'
-import { addGarden } from '@/api/garden'
+import { addGarden, listLocations } from '@/api/garden'
 import { useAuth } from '@/hooks/useAuth'
 import ImageCarousel from '@/components/common/ImageCarousel.vue'
 import FavoriteButton from '@/components/common/FavoriteButton.vue'
 import DiseaseCard from '@/components/common/DiseaseCard.vue'
 import { PlantTypeMap, type PlantSpecies } from '@/constants/plant'
-import type { DiseasePest } from '@/types/api'
+import type { DiseasePest, GardenLocation } from '@/types/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,6 +67,9 @@ const { isLoggedIn } = useAuth()
 const plant = ref<PlantSpecies | null>(null)
 const pests = ref<DiseasePest[]>([])
 const gardenLoading = ref(false)
+const gardenDialog = ref(false)
+const locations = ref<GardenLocation[]>([])
+const targetLocation = ref<number>()
 
 onMounted(async () => {
   plant.value = await getPlant(route.params.id as string)
@@ -68,8 +84,21 @@ async function addToGarden() {
   }
   gardenLoading.value = true
   try {
-    await addGarden({ plant_species_id: plant.value!.id, nickname: plant.value!.name })
+    locations.value = await listLocations()
+    targetLocation.value = locations.value.find((l) => l.remaining > 0)?.id
+    gardenDialog.value = true
+  } finally {
+    gardenLoading.value = false
+  }
+}
+
+async function confirmAddToGarden() {
+  if (!targetLocation.value) return
+  gardenLoading.value = true
+  try {
+    await addGarden({ plant_species_id: plant.value!.id, nickname: plant.value!.name, location_id: targetLocation.value })
     ElMessage.success('已加入我的花园')
+    gardenDialog.value = false
   } finally {
     gardenLoading.value = false
   }
@@ -83,4 +112,5 @@ async function addToGarden() {
 .alias { color: #999; }
 .desc { margin-top: 12px; line-height: 1.6; }
 .actions { margin-top: 16px; display: flex; gap: 12px; }
+.location-options { display: flex; flex-direction: column; gap: 8px; }
 </style>

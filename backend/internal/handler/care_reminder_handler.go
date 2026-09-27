@@ -27,10 +27,11 @@ func NewCareReminderHandler(svc *service.CareReminderService, logger *slog.Logge
 	return &CareReminderHandler{svc: svc, logger: logger}
 }
 
-// List handles GET /reminders.
+// List handles GET /reminders?status=&location_id=.
 func (h *CareReminderHandler) List(c *gin.Context) {
 	status := c.Query("status")
-	items, err := h.svc.ListByUser(middleware.GetUserID(c), status)
+	locationID, _ := strconv.ParseUint(c.DefaultQuery("location_id", "0"), 10, 64)
+	items, err := h.svc.ListByUser(middleware.GetUserID(c), status, uint(locationID))
 	if err != nil {
 		c.Error(err)
 		return
@@ -58,8 +59,8 @@ func (h *CareReminderHandler) Create(c *gin.Context) {
 		return
 	}
 	m := &model.CareReminder{
-		PlantSpeciesID: req.PlantSpeciesID, TaskTitle: req.TaskTitle,
-		RemindDate: req.RemindDate, Frequency: req.Frequency,
+		PlantSpeciesID: req.PlantSpeciesID, GardenID: req.GardenID, TaskTitle: req.TaskTitle,
+		RemindDate: req.RemindDate.Time(), Frequency: req.Frequency,
 	}
 	created, err := h.svc.Create(middleware.GetUserID(c), m)
 	if err != nil {

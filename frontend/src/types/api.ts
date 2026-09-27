@@ -26,22 +26,52 @@ export interface CareReminder {
   id: number
   user_id: number
   plant_species_id: number
+  garden_id: number
   task_title: string
   remind_date: string
   frequency: string
   status: 'pending' | 'done' | 'overdue'
   created_at: string
+  garden_code: string
+  plant_nickname: string
+  location_id: number
+  location_name: string
 }
 
 export interface UserGarden {
   id: number
   user_id: number
   plant_species_id: number
+  garden_code: string
   nickname: string
   owned_since: string
-  location: string
+  location_id: number
+  location_name: string
+  status: 'active' | 'removed'
+  removed_at: string | null
   care_reminder_id: number
   created_at: string
+}
+
+export interface GardenLocation {
+  id: number
+  user_id: number
+  name: string
+  capacity: number
+  used: number
+  remaining: number
+  created_at: string
+}
+
+export interface GardenMoveRecord {
+  id: number
+  user_id: number
+  garden_id: number
+  garden_code: string
+  plant_nickname: string
+  from_location: string
+  to_location: string
+  moved_at: string
 }
 
 export interface DiseasePest {

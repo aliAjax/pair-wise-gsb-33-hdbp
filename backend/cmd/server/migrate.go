@@ -2,12 +2,14 @@ package main
 
 import (
 	"log/slog"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"github.com/gbplantwiki/gbplantwiki/internal/constants"
 	"github.com/gbplantwiki/gbplantwiki/internal/model"
+	"github.com/gbplantwiki/gbplantwiki/internal/util"
 )
 
 func migrate(db *gorm.DB) error {
@@ -19,6 +21,8 @@ func migrate(db *gorm.DB) error {
 		&model.CareReminder{},
 		&model.Favorite{},
 		&model.UserGarden{},
+		&model.GardenLocation{},
+		&model.GardenMoveRecord{},
 		&model.Question{},
 		&model.Answer{},
 	)
@@ -78,9 +82,39 @@ func seed(db *gorm.DB) error {
 		return err
 	}
 
+	locations := []model.GardenLocation{
+		{UserID: user.ID, Name: constants.LocationIndoor, Capacity: constants.DefaultIndoorCapacity},
+		{UserID: user.ID, Name: constants.LocationBalcony, Capacity: constants.DefaultBalconyCapacity},
+	}
+	if err := db.Create(&locations).Error; err != nil {
+		return err
+	}
+
+	gardens := []model.UserGarden{
+		{UserID: user.ID, PlantSpeciesID: plants[3].ID, Nickname: "阳台月季", OwnedSince: time.Now().AddDate(0, -3, 0), LocationID: locations[1].ID, Status: constants.GardenStatusActive},
+		{UserID: user.ID, PlantSpeciesID: plants[0].ID, Nickname: "客厅龟背竹", OwnedSince: time.Now().AddDate(0, -6, 0), LocationID: locations[0].ID, Status: constants.GardenStatusActive},
+	}
+	if err := db.Create(&gardens).Error; err != nil {
+		return err
+	}
+	for i := range gardens {
+		gardens[i].GardenCode = util.FormatGardenCode(gardens[i].ID)
+		if err := db.Save(&gardens[i]).Error; err != nil {
+			return err
+		}
+	}
+
+	moveRecords := []model.GardenMoveRecord{
+		{UserID: user.ID, GardenID: gardens[0].ID, GardenCode: gardens[0].GardenCode, PlantNickname: gardens[0].Nickname,
+			FromLocation: constants.LocationIndoor, ToLocation: constants.LocationBalcony, MovedAt: time.Now().AddDate(0, 0, -7)},
+	}
+	if err := db.Create(&moveRecords).Error; err != nil {
+		return err
+	}
+
 	reminders := []model.CareReminder{
-		{UserID: user.ID, PlantSpeciesID: plants[3].ID, TaskTitle: "给月季补充缓释肥", Frequency: "monthly", Status: model.ReminderPending},
-		{UserID: user.ID, PlantSpeciesID: plants[0].ID, TaskTitle: "龟背竹叶片擦拭除尘", Frequency: "weekly", Status: model.ReminderPending},
+		{UserID: user.ID, PlantSpeciesID: plants[3].ID, GardenID: gardens[0].ID, TaskTitle: "给月季补充缓释肥", Frequency: "monthly", Status: model.ReminderPending},
+		{UserID: user.ID, PlantSpeciesID: plants[0].ID, GardenID: gardens[1].ID, TaskTitle: "龟背竹叶片擦拭除尘", Frequency: "weekly", Status: model.ReminderPending},
 	}
 	if err := db.Create(&reminders).Error; err != nil {
 		return err

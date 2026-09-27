@@ -2,6 +2,8 @@
 
 为园艺爱好者提供全面的植物养护指南：品种库、养护文章、病虫害诊断、季节养护日历、我的花园、问答社区与养护小测验，支持图文展示与个人花园/提醒管理。
 
+我的花园已升级为「植株档案」：建档生成唯一园内编号（如 `G000001`），位置分室内/阳台并带容量；搬位先校验目标余量，批量搬位任一位置放不下即整批拒绝并说明缺多少空位；养护提醒绑定植株、随搬位自动跟随；按位置筛选时清单、待办与数量联动；移除植株仅退出当前清单，旧搬位记录与已完成提醒仍可查询。
+
 ## Docker Compose 一键启动（推荐）
 
 ```bash
@@ -67,14 +69,14 @@ gb-61/
 │   ├── cmd/server/              # main.go + migrate/seed
 │   └── internal/
 │       ├── config/              # 环境变量解析
-│       ├── model/               # 9 个实体，按实体分文件
+│       ├── model/               # 11 个实体，按实体分文件
 │       ├── repository/          # 按实体分文件，哨兵错误
 │       ├── service/             # 按实体分文件，构造器注入
 │       ├── handler/             # 按实体分文件 + upload/home
 │       ├── router/              # router.go + 按实体分文件
 │       ├── middleware/          # auth/rbac/rate_limiter/error_handler/logger/cors
-│       ├── dto/                 # 请求/响应结构体 + 统一响应包装
-│       ├── constants/           # plant/article/favorite/error_codes/log_templates/messages
+│       ├── dto/                 # 请求/响应结构体 + 统一响应包装 + JSONDate 宽容日期解析
+│       ├── constants/           # plant/article/favorite/garden/error_codes/log_templates/messages
 │       └── util/                # jwt/logger/formatters/app_error/file/season
 └── frontend/
     ├── nginx.conf               # /api 反代 backend + SPA
@@ -86,7 +88,7 @@ gb-61/
         ├── pages/               # Home/PlantLibrary/PlantDetail/ArticleList/.../Login
         ├── router/              # index.ts + guards.ts
         ├── utils/               # request/dateFormat/season
-        └── constants/           # plant/article/favorite/errorCodes
+        └── constants/           # plant/article/favorite/garden/errorCodes
 ```
 
 ## 环境变量
@@ -140,18 +142,23 @@ gb-61/
 | POST | /api/v1/pests | 管理员（限流） | 新增病虫害条目 |
 | PUT | /api/v1/pests/:id | 管理员 | 更新病虫害条目 |
 | DELETE | /api/v1/pests/:id | 管理员 | 删除病虫害条目 |
-| GET | /api/v1/reminders | 登录 | 当前用户提醒列表（自动标记逾期） |
+| GET | /api/v1/reminders | 登录 | 当前用户提醒列表（自动标记逾期，支持 `status`、`location_id` 筛选，提醒跟随植株所在位置） |
 | GET | /api/v1/reminders/calendar | 登录 | 按月查询提醒 |
-| POST | /api/v1/reminders | 登录（限流） | 创建养护提醒 |
+| POST | /api/v1/reminders | 登录（限流） | 创建养护提醒（`remind_date` 接受 `YYYY-MM-DD` 或 RFC3339，可传 `garden_id` 绑定植株） |
 | PUT | /api/v1/reminders/:id/status | 登录 | 状态流转 pending/done |
 | DELETE | /api/v1/reminders/:id | 登录 | 删除提醒 |
 | GET | /api/v1/favorites | 登录 | 收藏列表 |
 | POST | /api/v1/favorites | 登录（限流） | 添加收藏 |
 | DELETE | /api/v1/favorites/:targetType/:targetId | 登录 | 取消收藏 |
-| GET | /api/v1/gardens | 登录 | 我的花园列表 |
-| POST | /api/v1/gardens | 登录（限流） | 加入我的花园 |
+| GET | /api/v1/gardens | 登录 | 我的花园清单（支持 `location_id` 筛选，含园内编号与位置名） |
+| POST | /api/v1/gardens | 登录（限流） | 植株建档（生成唯一园内编号，校验位置余量） |
+| POST | /api/v1/gardens/move | 登录（限流） | 批量搬位（任一位置放不下则整批拒绝并说明缺多少空位） |
+| GET | /api/v1/gardens/removed | 登录 | 已移除植株（软删除，仍可查询） |
+| GET | /api/v1/gardens/moves | 登录 | 搬位记录（含已移除植株的历史） |
+| GET | /api/v1/garden-locations | 登录 | 位置列表（室内/阳台，含容量、已用、剩余） |
+| PUT | /api/v1/garden-locations/:id | 登录 | 修改位置容量（不得低于当前占用） |
 | PUT | /api/v1/gardens/:id/reminder | 登录 | 关联养护提醒 |
-| DELETE | /api/v1/gardens/:id | 登录 | 移除花园条目 |
+| DELETE | /api/v1/gardens/:id | 登录 | 移除植株（软删除，只退出当前清单） |
 | GET | /api/v1/questions | 公开 | 问答列表 |
 | GET | /api/v1/questions/:id | 公开 | 问题详情 |
 | GET | /api/v1/questions/:id/answers | 公开 | 问题回答列表 |
@@ -177,6 +184,11 @@ gb-61/
 
 - 后端：`backend/internal/constants/favorite.go`（定义）、`backend/internal/model/favorite.go`（模型）、`backend/internal/service/favorite_service.go`（校验）、`backend/internal/constants/log_templates.go`、`database/init.sql`
 - 前端：`frontend/src/constants/favorite.ts`（定义）、`frontend/src/components/common/FavoriteButton.vue`（交互）、`frontend/src/pages/Garden.vue` 与 `frontend/src/pages/Profile.vue`（收藏夹列表）
+
+### GardenStatus / 花园位置（植株状态：active/removed；默认位置：室内/阳台）
+
+- 后端：`backend/internal/constants/garden.go`（定义）、`backend/internal/model/user_garden.go` 与 `garden_location.go`（模型）、`backend/internal/service/user_garden_service.go`（状态机/容量校验）、`backend/internal/util/formatters.go`（GardenStatusText、FormatGardenCode）、`backend/internal/constants/log_templates.go`、`database/init.sql`
+- 前端：`frontend/src/constants/garden.ts`（定义）、`frontend/src/pages/Garden.vue`（筛选/搬位/历史）、`frontend/src/pages/PlantDetail.vue`（建档选位置）
 
 ## 横切关注点
 

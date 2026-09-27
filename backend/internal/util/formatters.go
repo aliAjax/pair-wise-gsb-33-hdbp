@@ -80,3 +80,22 @@ func ReminderStatusText(s string) string {
 		return "未知"
 	}
 }
+
+// GardenStatusText maps a garden item status to Chinese text.
+func GardenStatusText(s string) string {
+	switch s {
+	case "active":
+		return "在养"
+	case "removed":
+		return "已移除"
+	default:
+		return "未知"
+	}
+}
+
+// FormatGardenCode renders the unique garden code for a garden item id. The
+// code is derived from the primary key so uniqueness is guaranteed by
+// construction at profile creation time.
+func FormatGardenCode(id uint) string {
+	return fmt.Sprintf("G%06d", id)
+}

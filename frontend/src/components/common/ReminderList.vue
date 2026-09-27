@@ -1,6 +1,12 @@
 <template>
   <el-table :data="reminders" stripe empty-text="暂无养护提醒">
-    <el-table-column prop="task_title" label="任务" min-width="180" />
+    <el-table-column prop="task_title" label="任务" min-width="160" />
+    <el-table-column label="植株" min-width="130">
+      <template #default="{ row }">
+        <span v-if="row.garden_id">{{ row.plant_nickname || row.garden_code }}（{{ row.location_name || '未分配' }}）</span>
+        <span v-else>-</span>
+      </template>
+    </el-table-column>
     <el-table-column label="提醒日期" width="120">
       <template #default="{ row }">{{ formatDate(row.remind_date) }}</template>
     </el-table-column>

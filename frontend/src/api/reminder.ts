@@ -1,15 +1,17 @@
 import request from '@/utils/request'
 import type { CareReminder } from '@/types/api'
 
-export function listReminders(status?: string) {
-  return request.get<never, CareReminder[]>('/reminders', { params: { status } })
+export function listReminders(status?: string, locationId?: number) {
+  return request.get<never, CareReminder[]>('/reminders', {
+    params: { status: status || undefined, location_id: locationId || undefined },
+  })
 }
 
 export function listRemindersByMonth(year: number, month: number) {
   return request.get<never, CareReminder[]>('/reminders/calendar', { params: { year, month } })
 }
 
-export function createReminder(payload: { plant_species_id?: number; task_title: string; remind_date: string; frequency?: string }) {
+export function createReminder(payload: { plant_species_id?: number; garden_id?: number; task_title: string; remind_date: string; frequency?: string }) {
   return request.post<never, CareReminder>('/reminders', payload)
 }
 

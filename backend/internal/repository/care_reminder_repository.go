@@ -53,14 +53,21 @@ func (r *CareReminderRepository) Delete(id uint) error {
 	return nil
 }
 
-// ListByUser returns reminders for a user with optional status filter.
-func (r *CareReminderRepository) ListByUser(userID uint, status string) ([]model.CareReminder, error) {
+// ListByUser returns reminders for a user with optional status and location
+// filters. The location filter joins the linked garden item so reminders
+// follow the plant: whatever location the plant currently sits in decides
+// whether its reminders match.
+func (r *CareReminderRepository) ListByUser(userID uint, status string, locationID uint) ([]model.CareReminder, error) {
 	var items []model.CareReminder
-	q := r.db.Where("user_id = ?", userID)
+	q := r.db.Model(&model.CareReminder{}).Where("care_reminders.user_id = ?", userID)
 	if status != "" {
-		q = q.Where("status = ?", status)
+		q = q.Where("care_reminders.status = ?", status)
 	}
-	if err := q.Order("remind_date ASC").Find(&items).Error; err != nil {
+	if locationID > 0 {
+		q = q.Select("care_reminders.*").
+			Joins("JOIN user_gardens ON user_gardens.id = care_reminders.garden_id AND user_gardens.location_id = ?", locationID)
+	}
+	if err := q.Order("care_reminders.remind_date ASC").Find(&items).Error; err != nil {
 		return nil, err
 	}
 	return items, nil

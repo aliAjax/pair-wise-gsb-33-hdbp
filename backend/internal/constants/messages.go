@@ -8,6 +8,8 @@ const (
 	MsgLogoutOK             = "退出登录成功"
 	MsgPlantAddedToGarden   = "已加入我的花园"
 	MsgPlantRemovedGarden   = "已从我的花园移除"
+	MsgPlantMoved           = "搬位成功"
+	MsgLocationCapacityUpd  = "位置容量已更新"
 	MsgFavoriteAdded        = "收藏成功"
 	MsgFavoriteRemoved      = "已取消收藏"
 	MsgArticlePublished     = "文章发布成功"

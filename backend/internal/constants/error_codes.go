@@ -11,6 +11,7 @@ const (
 	CodeRateLimited     = 42900
 	CodeValidationError = 42200
 	CodeInternalError   = 50000
+	CodeLocationFull    = 40901
 )
 
 // Error messages referenced across handlers and middleware.
